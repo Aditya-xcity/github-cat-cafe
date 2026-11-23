@@ -141,7 +141,7 @@ function App() {
           onClick={() => { setSelected(undefined); setDirectory(!directory) }}>Cat Directory</button>}
       </div>
     </header>
-    <p className="map-hint">WASD to fly · Drag to explore</p>
+    <p className="map-hint">WASD to fly · Space to throw · Tap a cat to aim</p>
     {directory && <section id="directory" className="directory" aria-labelledby="directory-title" onKeyDown={event => {
       if (event.key === 'Escape') { setDirectory(false); directoryButton.current?.focus() }
     }}>
