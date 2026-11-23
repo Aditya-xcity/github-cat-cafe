@@ -2,9 +2,9 @@
 
 [Launch Space Cats](https://aditya-xcity.github.io/github-cat-cafe/) · [Visit Aditya-xcity’s galaxy](https://aditya-xcity.github.io/github-cat-cafe/?user=Aditya-xcity)
 
-Enter a GitHub username or profile URL to turn every public repo into an astronaut cat. Pilot with WASD, drag the map with a mouse or finger, or use the Cat Directory to jump to a repo. Fly near a cat and select **Scan** to log it. The mission counter tracks unique scans for your current visit.
+Enter a GitHub username or profile URL to turn every public repo into an astronaut cat. Pilot with WASD, drag the map with a mouse or finger, or use the Cat Directory to jump to a repo. Press Space or select **Throw orb** to fire along the ship’s heading. Tap or click a cat to aim at its current position. Cats flee when approached, so lead your throw. The mission counter tracks unique captures for your current visit.
 
-Each sector holds up to 12 cats around a planet. The galaxy includes forks and archived projects, follows GitHub pagination, and keeps repository details available even before a scan. Scanning is optional.
+Each sector holds up to 12 cats around a planet. The galaxy includes forks and archived projects, follows GitHub pagination, and keeps repository details available from the Cat Directory before and after a capture.
 
 ## Local development
 
