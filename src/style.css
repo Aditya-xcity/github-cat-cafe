@@ -40,24 +40,8 @@ input:focus-visible {
   outline: 3px solid #385d9b;
   outline-offset: 4px;
 }
-main {
-  max-width: 1120px;
-  margin: auto;
-  padding: 0 28px;
-}
-.top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 23px 0;
-  border-bottom: 1px solid #e8cfc7;
-}
-.wordmark {
-  font-weight: 900;
-}
 .quiet,
 .try,
-.floorbar button,
 .error button,
 .empty button {
   background: var(--cream);
@@ -65,36 +49,6 @@ main {
   border-radius: 12px;
   padding: 10px 13px;
   font-weight: 750;
-}
-.intro {
-  text-align: center;
-  padding: 35px 0 30px;
-}
-.kicker {
-  font:
-    800 11px ui-monospace,
-    monospace;
-  letter-spacing: 0.2em;
-  color: #854862;
-}
-h1 {
-  font-size: clamp(42px, 8vw, 85px);
-  margin: 8px 0;
-  line-height: 1.02;
-  letter-spacing: -0.075em;
-}
-h1 em {
-  font-style: normal;
-  color: #a53e65;
-}
-.intro p {
-  margin: 12px 0;
-}
-.intro form {
-  display: flex;
-  gap: 8px;
-  max-width: 530px;
-  margin: 22px auto 12px;
 }
 input {
   min-width: 0;
@@ -121,30 +75,6 @@ input {
 .try {
   background: #fce0e5;
 }
-.venue {
-  overflow: hidden;
-  border: 3px solid var(--ink);
-  border-radius: 17px;
-  box-shadow: 0 7px #dfb8ae;
-  background: var(--cream);
-}
-.sign,
-.floorbar {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 17px;
-}
-.sign {
-  background: #6a345c;
-  color: #fff7e7;
-}
-.sign h2 {
-  font-size: clamp(15px, 3vw, 23px);
-  margin: 0;
-  overflow-wrap: anywhere;
-}
 .count {
   background: #ffd993;
   color: #512c43;
@@ -159,7 +89,6 @@ input {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  height: clamp(280px, 43vw, 465px);
   background: #f2aabc;
 }
 .wall {
@@ -476,14 +405,6 @@ input {
     transform: scaleY(0.95);
   }
 }
-.floorbar div {
-  display: flex;
-  gap: 5px;
-}
-.floorbar button {
-  min-height: 44px;
-  min-width: 44px;
-}
 .directory {
   margin: 32px 0;
   padding: 20px;
@@ -593,11 +514,6 @@ input {
 .empty button {
   margin-left: 6px;
 }
-footer {
-  padding: 26px 0;
-  text-align: center;
-  font-size: 0.9rem;
-}
 .sr {
   position: absolute;
   width: 1px;
@@ -612,37 +528,12 @@ footer {
   }
 }
 @media (max-width: 600px) {
-  main {
-    padding: 0 12px;
-  }
-  .top {
-    padding: 13px 0;
-  }
-  .intro {
-    padding: 19px 0 23px;
-  }
-  .intro form {
-    gap: 5px;
-  }
-  .intro form .primary {
-    padding-inline: 9px;
-  }
-  .sign,
-  .floorbar {
-    padding: 9px;
-  }
-  .floorbar {
-    font-size: 0.83rem;
-  }
   .details {
     inset: auto 0 0;
     width: 100%;
     max-height: 78dvh;
     border-radius: 18px 18px 0 0;
     animation: sheet 0.25s ease-out;
-  }
-  .scene {
-    height: 280px;
   }
   .doorframe,
   .window {
@@ -664,4 +555,121 @@ footer {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* The world fills the viewport, with camera controls above the scene. */
+.map-app {
+  position: fixed;
+  inset: 0;
+  max-width: none;
+  padding: 0;
+  overflow: hidden;
+  isolation: isolate;
+}
+.world-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  background: #8093bb;
+  background-image: conic-gradient(#a3b1d4 25%, #879ac4 0 50%, #a3b1d4 0 75%, #879ac4 0);
+  background-size: var(--tile-grid) var(--tile-grid);
+  background-position: var(--grid-x) var(--grid-y);
+}
+.world-viewport.dragging { cursor: grabbing; }
+.world-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+}
+.world-room { position: absolute; }
+.world-room .scene {
+  height: 100%;
+  border: 4px solid #553d62;
+  border-radius: 8px;
+  box-shadow: 0 6px #654c77;
+}
+.world-room .cat { width: 80px; height: 72px; }
+.map-header {
+  position: absolute;
+  inset: 14px 14px auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  pointer-events: none;
+}
+.map-profile, .map-actions, .map-controls, .map-hint {
+  background: var(--cream);
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  box-shadow: 0 3px #482c4744;
+  pointer-events: auto;
+}
+.map-profile { padding: 10px; width: min(425px, 100%); }
+.map-profile h1 {
+  font-size: clamp(17px, 3vw, 26px);
+  letter-spacing: -.035em;
+  margin: 0 0 8px;
+  overflow-wrap: anywhere;
+}
+.map-profile form { display: flex; gap: 5px; }
+.map-profile input, .map-profile .primary { min-height: 42px; padding: 8px; }
+.map-profile .try { margin-top: 6px; padding: 6px 8px; }
+.map-profile p, .map-profile .error { margin: 6px 0 0; }
+.map-actions, .map-controls { display: flex; align-items: center; gap: 5px; padding: 5px; }
+.map-actions button, .map-controls button { min-height: 44px; padding: 6px 9px; }
+.map-controls { position: absolute; right: 14px; bottom: 14px; }
+.map-controls button {
+  min-width: 44px;
+  border: 1px solid #cba3ad;
+  border-radius: 8px;
+  background: #fce0e5;
+  font-size: 1.2rem;
+}
+.map-hint {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  margin: 0;
+  padding: 8px 10px;
+  font-size: .82rem;
+  pointer-events: none;
+}
+.map-app .directory {
+  position: absolute;
+  z-index: 4;
+  top: 74px;
+  right: 14px;
+  width: min(370px, calc(100% - 28px));
+  max-height: calc(100% - 148px);
+  overflow: auto;
+  margin: 0;
+  box-shadow: 0 9px 24px #482c4744;
+}
+.map-app .directory h2 { margin-bottom: 12px; }
+.map-app .directory ul { grid-template-columns: 1fr; }
+@media (max-width: 650px) {
+  .map-header { flex-direction: column; inset: 7px 7px auto; }
+  .map-profile { width: 100%; }
+  .map-actions { align-self: flex-end; }
+  .map-hint { left: 7px; bottom: 9px; padding: 6px; }
+  .map-controls { right: 7px; bottom: 7px; }
+  .map-app .directory { inset: auto 0 0; width: 100%; max-height: 68dvh; border-radius: 16px 16px 0 0; }
+}
+.fullscreen-status {
+  position: absolute;
+  right: 14px;
+  bottom: 66px;
+  margin: 0;
+  padding: 8px;
+  background: var(--cream);
+  border-radius: 8px;
+}
+@media (max-width: 410px) {
+  .map-hint { bottom: 64px; }
 }
