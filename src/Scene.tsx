@@ -47,7 +47,19 @@ function catPosition(index: number) {
 }
 
 const flightKeys = new Set(['w', 'a', 's', 'd'])
-const scanRange = 123
+const fleeRange = 190
+type Point = { x: number; y: number }
+type Orb = Point & { id: number; vx: number; vy: number; life: number }
+
+function Spaceship() {
+  return <svg viewBox="0 0 88 54" aria-hidden="true">
+    <path d="M30 21 2 27l28 6" fill="#63fce5" />
+    <path d="m31 15-11-12h20l15 16m-24 20L20 51h20l15-16" fill="#916af3" stroke="#cbafff" strokeWidth="2" />
+    <path d="M24 15h28l31 12-31 12H24l6-12z" fill="#263e74" stroke="#abfff0" strokeWidth="2" />
+    <path d="M48 19h12l14 8-14 8H48l-5-8z" fill="#65e8e8" />
+    <path d="M30 23h9v8h-9z" fill="#f798f2" />
+  </svg>
+}
 
 type Camera = { x: number; y: number; zoom: number }
 
@@ -62,7 +74,14 @@ export function Scene({ cats, arrived, selected, onSelect }: {
   const [size, setSize] = useState({ width: innerWidth, height: innerHeight })
   const [camera, setCamera] = useState<Camera>(() => ({ x: 0, y: 0, zoom: homeZoom(innerWidth) }))
   const reducedMotion = useReducedMotion()
-  const [scanned, setScanned] = useState<Set<number>>(() => new Set())
+  const [captured, setCaptured] = useState<Set<number>>(() => new Set())
+  const [status, setStatus] = useState('')
+  const [, redraw] = useState(0)
+  const offsets = useRef(new Map<number, Point>())
+  const orbs = useRef<Orb[]>([])
+  const caught = useRef(new Set<number>())
+  const lastThrow = useRef(-Infinity)
+  const nextOrb = useRef(0)
   const [heading, setHeading] = useState(-90)
   const positions = useMemo(() => cats.map((cat, index) => ({ cat, ...catPosition(index) })), [cats])
   const [dragging, setDragging] = useState(false)
@@ -198,26 +217,93 @@ export function Scene({ cats, arrived, selected, onSelect }: {
     setDragging(false)
   }
 
+  function throwOrb(target?: Point) {
+    const now = performance.now()
+    if (now - lastThrow.current < 250) return
+    lastThrow.current = now
+    const angle = target ? Math.atan2(target.y - camera.y, target.x - camera.x) : heading * Math.PI / 180
+    const vx = Math.cos(angle) * 710
+    const vy = Math.sin(angle) * 710
+    setHeading(angle * 180 / Math.PI)
+    orbs.current.push({ id: nextOrb.current++, x: camera.x + vx * .045, y: camera.y + vy * .045, vx, vy, life: .8 })
+    redraw(value => value + 1)
+  }
+
+  const flight = useRef({ camera, positions, arrived, throwOrb })
+  useEffect(() => { flight.current = { camera, positions, arrived, throwOrb } })
+
+  useEffect(() => {
+    let frame = 0
+    let then = performance.now()
+    function update(now: number) {
+      const dt = Math.min(.04, (now - then) / 1000)
+      then = now
+      const { camera: ship, positions: roster, arrived: ready } = flight.current
+      const shots = orbs.current
+      let changed = shots.length > 0
+      for (const shot of shots) {
+        shot.x += shot.vx * dt
+        shot.y += shot.vy * dt
+        shot.life -= dt
+      }
+      for (let index = 0; index < ready; index++) {
+        const base = roster[index]
+        if (!base || caught.current.has(base.cat.id)) continue
+        const offset = offsets.current.get(base.cat.id)
+        let x = base.x + (offset?.x ?? 0)
+        let y = base.y + (offset?.y ?? 0)
+        const dx = x - ship.x
+        const dy = y - ship.y
+        const distance = Math.hypot(dx, dy)
+        if (distance < fleeRange) {
+          const angle = distance > 1 ? Math.atan2(dy, dx) : index * 2.4
+          const turn = Math.sin(now / 220 + index) * .44
+          x += Math.cos(angle + turn) * dt * 172
+          y += Math.sin(angle + turn) * dt * 172
+        } else if (offset) {
+          const recovery = Math.min(1, dt * .46)
+          x -= offset.x * recovery
+          y -= offset.y * recovery
+        }
+        if (Math.hypot(x - base.x, y - base.y) > .6) {
+          offsets.current.set(base.cat.id, { x: x - base.x, y: y - base.y })
+          changed = true
+        } else if (offset) {
+          offsets.current.delete(base.cat.id)
+          changed = true
+        }
+        const hit = shots.find(shot => shot.life > 0 && Math.hypot(shot.x - x, shot.y - y) < 27)
+        if (hit) {
+          hit.life = 0
+          caught.current.add(base.cat.id)
+          offsets.current.delete(base.cat.id)
+          setCaptured(new Set(caught.current))
+          setStatus('Captured ' + base.cat.name + '!')
+        }
+      }
+      orbs.current = shots.filter(shot => shot.life > 0)
+      if (changed) redraw(value => value + 1)
+      frame = requestAnimationFrame(update)
+    }
+    function fire(event: KeyboardEvent) {
+      if (event.code !== 'Space' || event.repeat || event.altKey || event.ctrlKey || event.metaKey ||
+        (event.target instanceof Element && event.target.closest('input, button, a, aside, #directory, [contenteditable]'))) return
+      event.preventDefault()
+      flight.current.throwOrb()
+    }
+    window.addEventListener('keydown', fire)
+    frame = requestAnimationFrame(update)
+    return () => {
+      cancelAnimationFrame(frame)
+      window.removeEventListener('keydown', fire)
+    }
+  }, [])
+
   const sectors = Math.max(1, Math.ceil(cats.length / roomSize))
   const radiusX = size.width / (2 * camera.zoom) + 95
   const radiusY = size.height / (2 * camera.zoom) + 95
   const visible = (x: number, y: number, margin = 0) =>
     Math.abs(x - camera.x) < radiusX + margin && Math.abs(y - camera.y) < radiusY + margin
-  let nearest: Cat | undefined
-  let nearestDistance = scanRange
-  positions.forEach(({ cat, x, y }, index) => {
-    if (index >= arrived) return
-    const distance = Math.hypot(x - camera.x, y - camera.y)
-    if (distance < nearestDistance) {
-      nearest = cat
-      nearestDistance = distance
-    }
-  })
-
-  function scan(cat: Cat) {
-    setScanned(previous => new Set(previous).add(cat.id))
-    onSelect(cat)
-  }
 
   return <>
     <div ref={viewport} className={'world-viewport' + (dragging ? ' dragging' : '')}
@@ -233,19 +319,28 @@ export function Scene({ cats, arrived, selected, onSelect }: {
             <span className="system-name">{index === 0 ? 'Origin station' : 'Sector ' + (index + 1)}</span>
           </div>
         })}
-        {positions.map(({ cat, x, y }, index) => (index < arrived || cat.id === selected) && visible(x, y) &&
-          <button key={cat.id} type="button" className={'astronaut ' + cat.mood} aria-label={cat.name}
-            aria-pressed={selected === cat.id} title={cat.name} style={{ left: x, top: y }}
-            onClick={() => Math.hypot(x - camera.x, y - camera.y) < scanRange ? scan(cat) : onSelect(cat)}>
+        {positions.map((base, index) => {
+          const { cat } = base
+          const offset = offsets.current.get(cat.id)
+          const x = base.x + (offset?.x ?? 0)
+          const y = base.y + (offset?.y ?? 0)
+          if (captured.has(cat.id) || (index >= arrived && cat.id !== selected) || !visible(x, y)) return null
+          const fleeing = Math.hypot(x - camera.x, y - camera.y) < fleeRange
+          return <button key={cat.id} type="button" className={'astronaut ' + cat.mood + (fleeing ? ' fleeing' : '')}
+            aria-label={'Throw at ' + cat.name} aria-pressed={selected === cat.id} title={cat.name}
+            style={{ left: x, top: y }} onClick={() => throwOrb({ x, y })}>
             <span className="astronaut-sprite"><Sprite cat={cat}/></span>
-            <span className="astronaut-name">{scanned.has(cat.id) ? '✓ ' : ''}{cat.name}</span>
-          </button>)}
+            <span className="astronaut-name">{cat.name}</span>
+          </button>
+        })}
+        {orbs.current.map(orb => <div key={orb.id} className="capture-orb" aria-hidden="true" style={{ left: orb.x, top: orb.y }} />)}
       </div>
-      <div className="ship" aria-hidden="true" style={{ rotate: heading + 'deg' }}>➤</div>
+      <div className="ship" aria-hidden="true" style={{ rotate: heading + 'deg' }}><Spaceship /></div>
     </div>
     <div className="mission">
-      <span>{scanned.size} / {cats.length} cats scanned</span>
-      <button disabled={!nearest} onClick={() => nearest && scan(nearest)}>{nearest ? 'Scan ' + nearest.name : 'Fly closer to scan'}</button>
+      <span>{captured.size} / {cats.length} cats captured</span>
+      <button onClick={() => throwOrb()}>Throw orb</button>
+      <span className="sr" role="status">{status}</span>
     </div>
     <div className="map-controls" aria-label="Navigation controls">
       <button aria-label="Return to origin" onClick={center}>⌂</button>
