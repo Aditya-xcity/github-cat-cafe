@@ -2,9 +2,9 @@
 
 [Visit the café](https://aditya-xcity.github.io/github-cat-cafe/) · [Try Aditya-xcity](https://aditya-xcity.github.io/github-cat-cafe/?user=Aditya-xcity)
 
-Enter a GitHub username or profile URL and watch its public repositories become cats. Select a cat in the room or search the Cat Directory to see repository details and open the project on GitHub.
+Enter a GitHub username or profile URL and watch its public repositories become cats. Drag or scroll across the continuous map, zoom with the on-screen controls, or use the fullscreen button. Select a cat in the map or search the Cat Directory to jump to its location and open its repository on GitHub. The entrance button returns you to the starting room.
 
-The café follows every page of GitHub's public repository API, including forks and archived projects. Rooms seat 12 cats each. Language influences coat color, stars add a collar charm, and archived projects nap. Non-archived projects updated in the past 30 days play with yarn.
+The café follows every page of GitHub's public repository API, including forks and archived projects. New rooms seat up to 12 cats each and extend outward from the entrance, with open space to pan in every direction. Language influences coat color, stars add a collar charm, and archived projects nap. Non-archived projects updated in the past 30 days play with yarn.
 
 ## Local development
 
