@@ -2,7 +2,7 @@ import { createRoot } from 'react-dom/client'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { parseUser, publicRepos } from './github'
 import { sampleCats, toCat, type Cat } from './cats'
-import { enableSound, entranceDelay, roomSize, sound, useReducedMotion } from './animation'
+import { enableSound, entranceDelay, sound, useReducedMotion } from './animation'
 import { Scene, Sprite } from './Scene'
 import './style.css'
 
@@ -12,7 +12,9 @@ function App() {
   const [user, setUser] = useState('')
   const [cats, setCats] = useState<Cat[]>([])
   const [arrived, setArrived] = useState(0)
-  const [room, setRoom] = useState(0)
+  const [directory, setDirectory] = useState(false)
+  const directoryButton = useRef<HTMLButtonElement>(null)
+  const search = useRef<HTMLInputElement>(null)
   const [selected, setSelected] = useState<Cat>()
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
@@ -44,7 +46,7 @@ function App() {
       const repos = await publicRepos(name, controller.signal, refresh)
       if (controller.signal.aborted) return
       setArrived(0)
-      setRoom(0)
+      setDirectory(false)
       setSelected(undefined)
       setQuery('')
       setUser(name)
@@ -91,19 +93,20 @@ function App() {
   }, [audible, cats.length])
 
   useEffect(() => { if (selected) details.current?.focus() }, [selected])
+  useEffect(() => { if (directory) search.current?.focus() }, [directory])
 
   function choose(cat: Cat) {
     trigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    const index = cats.findIndex(item => item.id === cat.id)
-    if (index >= 0) {
-      setRoom(Math.floor(index / roomSize))
-    }
+    setDirectory(false)
     setSelected(cat)
   }
 
   function close() {
     setSelected(undefined)
-    requestAnimationFrame(() => trigger.current?.isConnected && trigger.current.focus())
+    requestAnimationFrame(() => {
+      if (trigger.current?.isConnected) trigger.current.focus()
+      else directoryButton.current?.focus()
+    })
   }
 
   function submit(event: FormEvent) {
@@ -111,52 +114,47 @@ function App() {
     void load(input)
   }
 
-  const start = room * roomSize
-  const shown = user ? cats.slice(start, start + roomSize).filter((cat, index) => start + index < arrived || selected?.id === cat.id) : sampleCats
-  const totalRooms = Math.ceil(cats.length / roomSize)
   const matches = cats.filter(cat => cat.name.toLowerCase().includes(query.trim().toLowerCase()))
 
-  return <main>
-    <header className="top"><span className="wordmark">🐾 GitHub Cat Café</span>
-      <button className="quiet" aria-pressed={audible} onClick={() => {
-        const next = !audible
-        if (next) enableSound()
-        soundOn.current = next
-        setAudible(next)
-      }}>Sound {audible ? 'on' : 'off'}</button>
+  return <main className="map-app">
+    <Scene key={user.toLowerCase()} cats={user ? cats : sampleCats} arrived={user ? arrived : sampleCats.length}
+      selected={selected?.id} door={door} onSelect={choose}/>
+    <header className="map-header">
+      <div className="map-profile">
+        <h1 id="cafe-sign">{user ? '@' + user + '’s Cat Café' : 'GitHub Cat Café'}</h1>
+        <form onSubmit={submit}>
+          <label className="sr" htmlFor="github-user">GitHub username or profile URL</label>
+          <input id="github-user" value={input} onChange={event => setInput(event.target.value)}
+            placeholder="GitHub username or profile URL" autoComplete="off" />
+          <button className="primary">Open café <span aria-hidden="true">↗</span></button>
+        </form>
+        {!user && <button className="try" onClick={() => void load('Aditya-xcity')}>Try Aditya-xcity</button>}
+        {loading && <p role="status">Looking up public repositories…</p>}
+        {error && <div className="error" role="alert">{error} <button onClick={() => void load(input, true)}>Retry</button></div>}
+        {user && !cats.length && <p className="empty" role="status">@{user} has no public repositories. <button onClick={() => void load(user, true)}>Retry</button></p>}
+      </div>
+      <div className="map-actions">
+        <span className="count">{user ? arrived + ' / ' + cats.length + ' cats inside' : 'Sample café'}</span>
+        <button className="quiet" aria-pressed={audible} onClick={() => {
+          const next = !audible
+          if (next) enableSound()
+          soundOn.current = next
+          setAudible(next)
+        }}>Sound {audible ? 'on' : 'off'}</button>
+        {cats.length > 0 && <button className="quiet" ref={directoryButton} aria-expanded={directory} aria-controls="directory"
+          onClick={() => { setSelected(undefined); setDirectory(!directory) }}>Cat Directory</button>}
+      </div>
     </header>
-    <section className="intro">
-      <p className="kicker">THE INTERNET’S COZIEST CODE CORNER</p>
-      <h1>GitHub <em>Cat Café</em></h1>
-      <p>Every public repository gets a cat. Whose café will you visit?</p>
-      <form onSubmit={submit}>
-        <label className="sr" htmlFor="github-user">GitHub username or profile URL</label>
-        <input id="github-user" value={input} onChange={event => setInput(event.target.value)} placeholder="GitHub username or profile URL" autoComplete="off" />
-        <button className="primary">Open café <span aria-hidden="true">↗</span></button>
-      </form>
-      <button className="try" onClick={() => void load('Aditya-xcity')}>Try Aditya-xcity</button>
-      {loading && <p role="status">Looking up public repositories…</p>}
-      {error && <div className="error" role="alert">{error} <button onClick={() => void load(input, true)}>Retry</button></div>}
-    </section>
-    <section className="venue" aria-labelledby="cafe-sign">
-      <div className="sign"><h2 id="cafe-sign">{user ? '@' + user + '’s Cat Café' : 'The sample café'}</h2>
-        <span className="count">{user ? arrived + ' / ' + cats.length + ' cats inside' : 'Meet the sample cats'}</span>
-      </div>
-      <Scene cats={shown} selected={selected?.id} door={door} onSelect={choose}/>
-      <div className="floorbar">
-        <span>{user && totalRooms ? 'Room ' + (room + 1) + ' of ' + totalRooms : 'Window room'}</span>
-        {totalRooms > 1 && <div><button aria-label="Previous room" disabled={!room} onClick={() => setRoom(room - 1)}>←</button>
-          <button aria-label="Next room" disabled={room + 1 >= totalRooms} onClick={() => setRoom(room + 1)}>→</button></div>}
-        {cats.length > 0 && <a href="#directory">Cat Directory ↓</a>}
-      </div>
-    </section>
-    {user && !cats.length && <p className="empty" role="status">@{user} has no public repositories. <button onClick={() => void load(user, true)}>Retry</button></p>}
-    {cats.length > 0 && <section id="directory" className="directory">
-      <div><h2>Cat Directory</h2><p>Find a cat by its repository name.</p></div>
+    <p className="map-hint">Drag or scroll to explore</p>
+    {directory && <section id="directory" className="directory" aria-labelledby="directory-title" onKeyDown={event => {
+      if (event.key === 'Escape') { setDirectory(false); directoryButton.current?.focus() }
+    }}>
+      <button className="close" aria-label="Close Cat Directory" onClick={() => { setDirectory(false); directoryButton.current?.focus() }}>×</button>
+      <h2 id="directory-title">Cat Directory</h2>
       <label className="sr" htmlFor="cat-search">Search repositories</label>
-      <input id="cat-search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search repositories" />
+      <input ref={search} id="cat-search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search repositories" />
       {matches.length ? <ul>{matches.map(cat => <li key={cat.id}>
-        <button aria-pressed={selected?.id === cat.id} onClick={() => choose(cat)}>
+        <button onClick={() => choose(cat)}>
           <span className="mini"><Sprite cat={cat}/></span><span>{cat.name}</span><span aria-hidden="true">↗</span>
         </button></li>)}</ul> : <p>No cats match that repository name.</p>}
     </section>}
@@ -175,7 +173,6 @@ function App() {
         <a className="primary" href={selected.html_url} target="_blank" rel="noreferrer">Open on GitHub ↗</a>
       </>}
     </aside>}
-    <footer>Inspired by <a href="https://github.com/Dhruv-Sharma29/CodeVerse">CodeVerse</a>.</footer>
   </main>
 }
 
