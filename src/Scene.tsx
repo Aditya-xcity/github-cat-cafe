@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import type { Cat } from './cats'
-import { roomSize, slot } from './animation'
+import { roomSize, useReducedMotion } from './animation'
 
 export function Sprite({ cat }: { cat: Cat }) {
   const sleeping = cat.mood === 'nap'
   const eye = sleeping ? 18 : 14
-  return <svg viewBox="0 0 48 40" shapeRendering="crispEdges" aria-hidden="true">
+  return <svg viewBox="-5 -5 58 50" shapeRendering="crispEdges" aria-hidden="true">
+    <circle cx="24" cy="20" r="25" fill="#1b344a" stroke="#68f1e0" strokeWidth="2"/>
     <ellipse cx="24" cy="35" rx="20" ry="3" fill="#473456" opacity=".23"/>
     <path className="tail" d={cat.markings % 2 ? 'M32 29h10v-9h-4v5h-6z' : 'M32 31h13v-5h-13z'} fill={cat.coat} stroke="#513747" strokeWidth="2"/>
     <path d={sleeping ? 'M12 22h23v3h4v9H9V25h3z' : 'M17 19h14v4h5v11H13V24h4z'} fill={cat.coat} stroke="#513747" strokeWidth="2"/>
@@ -18,17 +19,14 @@ export function Sprite({ cat }: { cat: Cat }) {
     <rect x="14" y={eye + 5} width="3" height="2" fill="#d56788"/>
     {cat.stargazers_count > 0 && <><path d={sleeping ? 'M10 30h14v2H10z' : 'M10 23h15v2H10z'} fill="#a94967"/><text x="16" y={sleeping ? 36 : 30} fill="#ffe377" fontSize="11">★</text></>}
     {cat.mood === 'play' && <g className="yarn"><circle cx="42" cy="32" r="4" fill="#d4558a"/><path d="m39 33 5-3m-4 5 5-3" stroke="#fa9abc"/></g>}
+    <path d="M37 3h4v3h3v5" fill="none" stroke="#bdfef4" strokeWidth="2"/>
   </svg>
 }
 
-const tileWidth = 780
-const tileHeight = 440
-const aisle = 32
-const stepX = tileWidth + aisle
-const stepY = tileHeight + aisle
+const stepX = 960
+const stepY = 820
 
-// Put room zero at the entrance and grow successive rings around it.
-function roomPosition(index: number) {
+function sectorPosition(index: number) {
   if (index === 0) return { x: 0, y: 0 }
   const ring = Math.ceil((Math.sqrt(index + 1) - 1) / 2)
   const side = 2 * ring
@@ -39,31 +37,17 @@ function roomPosition(index: number) {
   return { x: ring * stepX, y: (-ring + offset - 3 * side) * stepY }
 }
 
-function Room({ cats, selected, door, onSelect }: {
-  cats: Array<{ cat: Cat; slotIndex: number }>; selected?: number; door: boolean;
-  onSelect: (cat: Cat) => void
-}) {
-  return <div className="scene">
-    <div className="wall" aria-hidden="true">
-      <div className="awning"/><div className="lamp one"/><div className="lamp two"/>
-      <div className="doorframe"><div className={'door' + (door ? ' open' : '')}/></div>
-      <div className="menu-board">CAFÉ<br/>✦ ✦ ✦</div>
-      <div className="counter"><div className="pastries"><i/><i/><i/></div></div>
-      <div className="window"><div className="skyline"/></div>
-      <div className="booth"/>
-      <div className="plant"><i/><b/></div><div className="plant small"><i/><b/></div>
-    </div>
-    <div className="floor" aria-hidden="true"><div className="sunlight"/><div className="rug"/></div>
-    {cats.map(({ cat, slotIndex }) => {
-      const position = slot(slotIndex)
-      return <button key={cat.id} tabIndex={cat.html_url ? -1 : 0} type="button" className={'cat ' + cat.mood}
-        aria-label={cat.name} aria-pressed={selected === cat.id} title={cat.name}
-        style={{ left: position.x + '%', top: position.y + '%', '--entry-x': (12 - position.x) * tileWidth / 100 + 'px',
-          '--entry-y': (57 - position.y) * tileHeight / 100 + 'px', '--phase': -(cat.id % 7) + 's' } as CSSProperties}
-        onClick={() => onSelect(cat)}><span className="cat-idle"><Sprite cat={cat}/></span></button>
-    })}
-  </div>
+function catPosition(index: number) {
+  const sector = sectorPosition(Math.floor(index / roomSize))
+  const slot = index % roomSize
+  const outer = slot >= 4
+  const angle = (slot % (outer ? 8 : 4)) * Math.PI / (outer ? 4 : 2) + (outer ? .29 : .62)
+  const radius = outer ? 310 : 162
+  return { x: sector.x + Math.cos(angle) * radius, y: sector.y + Math.sin(angle) * radius }
 }
+
+const flightKeys = new Set(['w', 'a', 's', 'd'])
+const scanRange = 123
 
 type Camera = { x: number; y: number; zoom: number }
 
@@ -71,12 +55,16 @@ function homeZoom(width: number) {
   return Math.min(1, Math.max(.6, width / 1450))
 }
 
-export function Scene({ cats, arrived, selected, door, onSelect }: {
-  cats: Cat[]; arrived: number; selected?: number; door: boolean; onSelect: (cat: Cat) => void
+export function Scene({ cats, arrived, selected, onSelect }: {
+  cats: Cat[]; arrived: number; selected?: number; onSelect: (cat: Cat) => void
 }) {
   const viewport = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ width: innerWidth, height: innerHeight })
   const [camera, setCamera] = useState<Camera>(() => ({ x: 0, y: 0, zoom: homeZoom(innerWidth) }))
+  const reducedMotion = useReducedMotion()
+  const [scanned, setScanned] = useState<Set<number>>(() => new Set())
+  const [heading, setHeading] = useState(-90)
+  const positions = useMemo(() => cats.map((cat, index) => ({ cat, ...catPosition(index) })), [cats])
   const [dragging, setDragging] = useState(false)
   const [fullscreen, setFullscreen] = useState(() => Boolean(document.fullscreenElement))
   const [fullscreenError, setFullscreenError] = useState(false)
@@ -121,13 +109,62 @@ export function Scene({ cats, arrived, selected, door, onSelect }: {
   }, [])
 
   useEffect(() => {
-    const index = cats.findIndex(cat => cat.id === selected)
-    if (index < 0) return
-    const room = roomPosition(Math.floor(index / roomSize))
-    const position = slot(index % roomSize)
-    setCamera(current => ({ ...current, x: room.x + (position.x / 100 - .5) * tileWidth,
-      y: room.y + (position.y / 100 - .5) * tileHeight }))
-  }, [cats, selected])
+    const target = positions.find(({ cat }) => cat.id === selected)
+    if (target) setCamera(current => ({ ...current, x: target.x, y: target.y }))
+  }, [positions, selected])
+
+  useEffect(() => {
+    const keys = new Set<string>()
+    let frame = 0
+    let previous = 0
+    let vx = 0
+    let vy = 0
+    function tick(now: number) {
+      const elapsed = Math.min((now - previous) / 1000, .035)
+      previous = now
+      const dx = Number(keys.has('d')) - Number(keys.has('a'))
+      const dy = Number(keys.has('s')) - Number(keys.has('w'))
+      const length = Math.hypot(dx, dy) || 1
+      const response = reducedMotion ? 1 : Math.min(1, elapsed * 8)
+      vx += (dx / length * 540 - vx) * response
+      vy += (dy / length * 540 - vy) * response
+      if (dx || dy) setHeading(Math.atan2(dy, dx) * 180 / Math.PI)
+      if (Math.hypot(vx, vy) > 1) {
+        const x = vx * elapsed
+        const y = vy * elapsed
+        setCamera(current => ({ ...current, x: current.x + x, y: current.y + y }))
+      }
+      frame = keys.size || Math.hypot(vx, vy) > 1 ? requestAnimationFrame(tick) : 0
+    }
+    function down(event: KeyboardEvent) {
+      const key = event.key.toLowerCase()
+      if (!flightKeys.has(key) || event.metaKey || event.ctrlKey || event.altKey ||
+        (event.target instanceof Element && event.target.closest('input, textarea, [contenteditable], aside, #directory'))) return
+      event.preventDefault()
+      keys.add(key)
+      if (!frame) {
+        previous = performance.now()
+        frame = requestAnimationFrame(tick)
+      }
+    }
+    function up(event: KeyboardEvent) { keys.delete(event.key.toLowerCase()) }
+    function stop() {
+      keys.clear()
+      cancelAnimationFrame(frame)
+      frame = 0
+      vx = 0
+      vy = 0
+    }
+    window.addEventListener('keydown', down)
+    window.addEventListener('keyup', up)
+    window.addEventListener('blur', stop)
+    return () => {
+      stop()
+      window.removeEventListener('keydown', down)
+      window.removeEventListener('keyup', up)
+      window.removeEventListener('blur', stop)
+    }
+  }, [reducedMotion])
 
   async function toggleFullscreen() {
     setFullscreenError(false)
@@ -161,31 +198,57 @@ export function Scene({ cats, arrived, selected, door, onSelect }: {
     setDragging(false)
   }
 
-  const count = Math.max(1, Math.ceil(cats.length / roomSize))
-  const radiusX = size.width / (2 * camera.zoom) + tileWidth / 2
-  const radiusY = size.height / (2 * camera.zoom) + tileHeight / 2
+  const sectors = Math.max(1, Math.ceil(cats.length / roomSize))
+  const radiusX = size.width / (2 * camera.zoom) + 95
+  const radiusY = size.height / (2 * camera.zoom) + 95
+  const visible = (x: number, y: number, margin = 0) =>
+    Math.abs(x - camera.x) < radiusX + margin && Math.abs(y - camera.y) < radiusY + margin
+  let nearest: Cat | undefined
+  let nearestDistance = scanRange
+  positions.forEach(({ cat, x, y }, index) => {
+    if (index >= arrived) return
+    const distance = Math.hypot(x - camera.x, y - camera.y)
+    if (distance < nearestDistance) {
+      nearest = cat
+      nearestDistance = distance
+    }
+  })
+
+  function scan(cat: Cat) {
+    setScanned(previous => new Set(previous).add(cat.id))
+    onSelect(cat)
+  }
+
   return <>
     <div ref={viewport} className={'world-viewport' + (dragging ? ' dragging' : '')}
-      role="region" aria-label="Café map. Drag or scroll to explore. Use the Cat Directory to find a repository."
-      style={{ '--tile-grid': 48 * camera.zoom + 'px', '--grid-x': (-camera.x * camera.zoom) % (48 * camera.zoom) + 'px',
-        '--grid-y': (-camera.y * camera.zoom) % (48 * camera.zoom) + 'px' } as CSSProperties}
+      role="region" aria-label="Galaxy. Fly with W A S D, or drag to explore."
+      style={{ '--grid-x': (-camera.x * .4) % 671 + 'px',
+        '--grid-y': (-camera.y * .4) % 671 + 'px' } as CSSProperties}
       onPointerDown={begin} onPointerMove={move} onPointerUp={end} onPointerCancel={end} onLostPointerCapture={end}>
       <div className="world-center" style={{ transform: 'scale(' + camera.zoom + ') translate(' + -camera.x + 'px,' + -camera.y + 'px)' }}>
-        {Array.from({ length: count }, (_, index) => {
-          const location = roomPosition(index)
-          if (Math.abs(location.x - camera.x) > radiusX || Math.abs(location.y - camera.y) > radiusY) return null
-          const start = index * roomSize
-          const occupants = cats.slice(start, start + roomSize).map((cat, slotIndex) => ({ cat, slotIndex }))
-            .filter(({ cat, slotIndex }) => start + slotIndex < arrived || cat.id === selected)
-          return <div key={index} className="world-room" style={{ width: tileWidth, height: tileHeight,
-            left: location.x - tileWidth / 2, top: location.y - tileHeight / 2 }}>
-            <Room cats={occupants} selected={selected} door={door && arrived >= start && arrived < start + roomSize} onSelect={onSelect}/>
+        {Array.from({ length: sectors }, (_, index) => {
+          const { x, y } = sectorPosition(index)
+          return visible(x, y, 340) && <div key={index} className="system" style={{ left: x, top: y, '--hue': (index * 61 + 185) % 360 } as CSSProperties}>
+            <span className="orbit inner"/><span className="orbit outer"/><span className="planet"/>
+            <span className="system-name">{index === 0 ? 'Origin station' : 'Sector ' + (index + 1)}</span>
           </div>
         })}
+        {positions.map(({ cat, x, y }, index) => (index < arrived || cat.id === selected) && visible(x, y) &&
+          <button key={cat.id} type="button" className={'astronaut ' + cat.mood} aria-label={cat.name}
+            aria-pressed={selected === cat.id} title={cat.name} style={{ left: x, top: y }}
+            onClick={() => Math.hypot(x - camera.x, y - camera.y) < scanRange ? scan(cat) : onSelect(cat)}>
+            <span className="astronaut-sprite"><Sprite cat={cat}/></span>
+            <span className="astronaut-name">{scanned.has(cat.id) ? '✓ ' : ''}{cat.name}</span>
+          </button>)}
       </div>
+      <div className="ship" aria-hidden="true" style={{ rotate: heading + 'deg' }}>➤</div>
     </div>
-    <div className="map-controls" aria-label="Map controls">
-      <button aria-label="Return to café entrance" onClick={center}>⌂</button>
+    <div className="mission">
+      <span>{scanned.size} / {cats.length} cats scanned</span>
+      <button disabled={!nearest} onClick={() => nearest && scan(nearest)}>{nearest ? 'Scan ' + nearest.name : 'Fly closer to scan'}</button>
+    </div>
+    <div className="map-controls" aria-label="Navigation controls">
+      <button aria-label="Return to origin" onClick={center}>⌂</button>
       <button aria-label="Zoom out" disabled={camera.zoom <= .3} onClick={() => zoomBy(.8)}>−</button>
       <button aria-label="Zoom in" disabled={camera.zoom >= 1.6} onClick={() => zoomBy(1.25)}>+</button>
       {document.fullscreenEnabled && <button aria-label={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
