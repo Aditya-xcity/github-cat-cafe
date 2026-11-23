@@ -112,3 +112,17 @@ button, .primary { border: 1px solid var(--line); border-radius: 8px; background
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+.ship { width: 72px; height: 45px; filter: drop-shadow(0 0 7px #32dac8); }
+.ship svg { display: block; width: 100%; height: 100%; }
+.astronaut.fleeing .astronaut-name { color: #ffb5dc; }
+.capture-orb {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  translate: -50% -50%;
+  border: 2px solid #d7ffff;
+  border-radius: 50%;
+  background: radial-gradient(circle, white 0 12%, #66f9dc 20% 32%, #473a8b 37% 63%, #a7f5ff 68%);
+  box-shadow: 0 0 14px #4bf8e9;
+  pointer-events: none;
+}
