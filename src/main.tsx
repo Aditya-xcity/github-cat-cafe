@@ -20,7 +20,6 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [audible, setAudible] = useState(false)
-  const [door, setDoor] = useState(false)
   const motion = useReducedMotion()
   const active = useRef<AbortController>(null)
   const soundOn = useRef(false)
@@ -69,10 +68,8 @@ function App() {
   useEffect(() => {
     if (!cats.length || motion) {
       setArrived(cats.length)
-      setDoor(false)
       return
     }
-    setDoor(true)
     if (soundOn.current) sound('chime')
     let count = 0
     let timer: number
@@ -80,7 +77,6 @@ function App() {
       count = Math.min(count + Math.max(1, Math.ceil(cats.length / 90)), cats.length)
       setArrived(previous => Math.max(previous, count))
       if (count < cats.length) timer = window.setTimeout(next, entranceDelay)
-      else setDoor(false)
     }
     timer = window.setTimeout(next, 420)
     return () => clearTimeout(timer)
@@ -118,15 +114,15 @@ function App() {
 
   return <main className="map-app">
     <Scene key={user.toLowerCase()} cats={user ? cats : sampleCats} arrived={user ? arrived : sampleCats.length}
-      selected={selected?.id} door={door} onSelect={choose}/>
+      selected={selected?.id} onSelect={choose}/>
     <header className="map-header">
       <div className="map-profile">
-        <h1 id="cafe-sign">{user ? '@' + user + '’s Cat Café' : 'GitHub Cat Café'}</h1>
+        <h1 id="cafe-sign">{user ? '@' + user + '’s Cat Galaxy' : 'Space Cats'}</h1>
         <form onSubmit={submit}>
           <label className="sr" htmlFor="github-user">GitHub username or profile URL</label>
           <input id="github-user" value={input} onChange={event => setInput(event.target.value)}
             placeholder="GitHub username or profile URL" autoComplete="off" />
-          <button className="primary">Open café <span aria-hidden="true">↗</span></button>
+          <button className="primary">Launch <span aria-hidden="true">↗</span></button>
         </form>
         {!user && <button className="try" onClick={() => void load('Aditya-xcity')}>Try Aditya-xcity</button>}
         {loading && <p role="status">Looking up public repositories…</p>}
@@ -134,7 +130,7 @@ function App() {
         {user && !cats.length && <p className="empty" role="status">@{user} has no public repositories. <button onClick={() => void load(user, true)}>Retry</button></p>}
       </div>
       <div className="map-actions">
-        <span className="count">{user ? arrived + ' / ' + cats.length + ' cats inside' : 'Sample café'}</span>
+        <span className="count">{user ? arrived + ' / ' + cats.length + ' cats in orbit' : 'Training sector'}</span>
         <button className="quiet" aria-pressed={audible} onClick={() => {
           const next = !audible
           if (next) enableSound()
@@ -145,7 +141,7 @@ function App() {
           onClick={() => { setSelected(undefined); setDirectory(!directory) }}>Cat Directory</button>}
       </div>
     </header>
-    <p className="map-hint">Drag or scroll to explore</p>
+    <p className="map-hint">WASD to fly · Drag to explore</p>
     {directory && <section id="directory" className="directory" aria-labelledby="directory-title" onKeyDown={event => {
       if (event.key === 'Escape') { setDirectory(false); directoryButton.current?.focus() }
     }}>
