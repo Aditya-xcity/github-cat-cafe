@@ -6,7 +6,7 @@ permissions:
   contents: read
 jobs:
   browser:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
@@ -74,6 +74,13 @@ jobs:
           assert(disabled)
           assert.equal(await text('Hull 100 HP').count(),1)
           assert.equal(await text('1 / 4 cats captured').count(),1)
+          await p.route('https://api.github.com/users/**', route => route.fulfill({json:[{id:42,name:'Demo Repository',description:'A test repository',language:'TypeScript',stargazers_count:5,fork:false,archived:false,updated_at:'2025-01-01',html_url:'https://github.com/octocat/demo'}]}))
+          await p.getByRole('textbox',{name:'GitHub username or profile URL'}).fill('octocat')
+          await p.getByRole('button',{name:/Launch/}).click()
+          await p.getByRole('heading',{name:'@octocat’s Cat Galaxy'}).waitFor()
+          await text('0 / 1 cats captured').waitFor()
+          await p.goto('http://127.0.0.1:4173/docs/')
+          await text('Rocket defeats 1').waitFor()
           assert.deepEqual(errors,[])
           console.log('Desktop capture success, escape, delayed resolution, ammo, pause, victory, and persistence passed.')
           const mobile=await browser.newPage({viewport:{width:390,height:844},hasTouch:true,isMobile:true})
