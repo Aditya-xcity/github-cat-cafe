@@ -1,4 +1,4 @@
-  name: Space Cats branch browser checks
+name: Space Cats branch browser checks
 on:
   push:
     branches: [feature/rocket-battles]
@@ -34,7 +34,8 @@ jobs:
           await p.mouse.click(1050,550)
           await text('Pokéballs 29 / 30').waitFor()
           await text('Pokéballs 30 / 30').waitFor()
-          await p.getByRole('button',{name:'Throw at Mochi'}).click()
+          const clickCat=async(name)=>{const box=await p.getByRole('button',{name:'Throw at '+name}).boundingBox(); await p.mouse.click(box.x+box.width/2,box.y+box.height/2)}
+          await clickCat('Mochi')
           await p.locator('.capture-shake').waitFor()
           assert.equal(await text('0 / 4 cats captured').count(),1)
           await text('1 / 4 cats captured').waitFor()
@@ -43,7 +44,7 @@ jobs:
           await p.reload()
           await text('1 / 4 cats captured').waitFor()
           await p.evaluate(() => localStorage.testRoll = '0.99')
-          await p.getByRole('button',{name:'Throw at Biscuit'}).click()
+          await clickCat('Biscuit')
           await p.locator('.capture-shake').waitFor()
           await text('Biscuit escaped!').waitFor()
           assert.equal(await text('1 / 4 cats captured').count(),1)
@@ -64,7 +65,13 @@ jobs:
           await text('Rocket defeats 1').waitFor({timeout:2000})
           await p.reload()
           await text('Rocket defeats 1').waitFor()
-          await p.clock.runFor(85000)
+          let disabled=false
+          for(let i=0;i<86;i++){
+            await p.clock.runFor(1000)
+            if(await p.getByRole('status').filter({hasText:'Spaceship disabled!'}).count()) disabled=true
+            if(disabled && await text('Hull 100 HP').count()) break
+          }
+          assert(disabled)
           assert.equal(await text('Hull 100 HP').count(),1)
           assert.equal(await text('1 / 4 cats captured').count(),1)
           assert.deepEqual(errors,[])
