@@ -48,7 +48,7 @@ function App() {
       setDirectory(false)
       setSelected(undefined)
       setQuery('')
-      setUser(name)
+      setUser(name.toLowerCase())
       setCats(repos.map(toCat))
       const url = new URL(location.href)
       url.searchParams.set('user', name)
@@ -84,7 +84,7 @@ function App() {
 
   useEffect(() => {
     if (!audible || !cats.length) return
-    const timer = setInterval(() => sound('meow'), 17500)
+    const timer = setInterval(() => { if (!document.hidden) sound('meow') }, 17500)
     return () => clearInterval(timer)
   }, [audible, cats.length])
 
@@ -114,7 +114,7 @@ function App() {
 
   return <main className="map-app">
     <Scene key={user.toLowerCase()} cats={user ? cats : sampleCats} arrived={user ? arrived : sampleCats.length}
-      selected={selected?.id} onSelect={choose}/>
+      selected={selected?.id} user={user} audible={audible} paused={directory || Boolean(selected)}/>
     <header className="map-header">
       <div className="map-profile">
         <h1 id="cafe-sign">{user ? '@' + user + '’s Cat Galaxy' : 'Space Cats'}</h1>
@@ -141,7 +141,7 @@ function App() {
           onClick={() => { setSelected(undefined); setDirectory(!directory) }}>Cat Directory</button>}
       </div>
     </header>
-    <p className="map-hint">WASD to fly · Space to throw · Tap a cat to aim</p>
+    <p className="map-hint">WASD or drag to fly · Click or tap to aim and throw · Space to fire forward</p>
     {directory && <section id="directory" className="directory" aria-labelledby="directory-title" onKeyDown={event => {
       if (event.key === 'Escape') { setDirectory(false); directoryButton.current?.focus() }
     }}>
