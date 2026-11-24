@@ -1,31 +1,32 @@
 # Space Cats
 
-[Launch Space Cats](https://aditya-xcity.github.io/github-cat-cafe/) · [Visit Aditya-xcity’s galaxy](https://aditya-xcity.github.io/github-cat-cafe/?user=Aditya-xcity)
+Fly through a galaxy where each public GitHub repository is an astronaut cat. Enter a username or GitHub profile URL, or start in the training sector.
 
-Enter a GitHub username or profile URL to turn every public repo into an astronaut cat. Pilot with WASD, drag the map with a mouse or finger, or use the Cat Directory to jump to a repo. Press Space or select **Throw orb** to fire along the ship’s heading. Tap or click a cat to aim at its current position. Cats flee when approached, so lead your throw. The mission counter tracks unique captures for your current visit.
+## Flight controls
 
-Each sector holds up to 12 cats around a planet. The galaxy includes forks and archived projects, follows GitHub pagination, and keeps repository details available from the Cat Directory before and after a capture.
+- Use **WASD** or drag the galaxy to fly. On touchscreens, drag to fly and tap to aim.
+- Click or tap anywhere in space to throw a Pokéball. Press **Space** or use **Throw** to fire forward.
+- Use the map controls to zoom, return to Origin Station, or enter fullscreen.
+- Open **Cat Directory** to find repository details or **Collection** to review your captures. Both pause the game. You can also pause from the HUD or turn on sound.
 
-## Local development
+## Capture and combat
 
-Use Node.js 22.12 or newer.
+A Pokéball must hit the cat first. The ball shakes three times before the capture resolves. An escaped cat sprints away temporarily.
 
-```sh
-npm ci
-npm run dev
-npm run build
-npm run preview
-```
+| Rarity | GitHub stars | Base catch chance |
+| --- | ---: | ---: |
+| Common | 0 | 80% |
+| Uncommon | 1–4 | 65% |
+| Rare | 5–19 | 45% |
+| Epic | 20–49 | 25% |
+| Legendary | 50+ | 10% |
 
-The app uses React, TypeScript and Vite. GitHub API access lives in `src/github.ts`, repository mapping in `src/cats.ts`, timing and sound in `src/animation.ts`, and galaxy rendering and flight controls in `src/Scene.tsx`. Requests are unauthenticated and cached in memory for five minutes. GitHub's public API rate limits apply.
+A center hit adds 10 percentage points and fleeing subtracts 10. Each miss after a collision adds 5 points to the next capture roll, up to 20. The final chance is limited to 5–95%. A capture earns 10 score points.
 
-## Deploy to GitHub Pages
+Team Rocket first arrives after 45–90 seconds of active exploration. Later encounters start 60–180 seconds after the last encounter ends. Dodge enemy fire and fight back with Pokéballs. Hits deal 15 damage, with a 15% chance of a 30-damage critical hit. Victory earns 50 points, 25 HP, and 10 Pokéballs within the normal limits. Losing restores full health at Origin Station after a four-second countdown.
 
-1. Run `npm ci` and `npm run build`.
-2. Replace the contents of `docs/` with the contents of `dist/` and keep an empty `docs/.nojekyll`.
-3. Commit and push to `main`. In **Settings → Pages**, select **Deploy from a branch**, then **main** and **/docs**.
-4. Open the Pages URL after deployment finishes. Add `?user=Aditya-xcity` to open a specific galaxy directly.
+You carry up to 30 Pokéballs and regenerate one every five seconds while the game is active. The game saves captures, score, and victories in this browser for each GitHub username.
 
-Sound starts off. The app respects your system reduced-motion preference. Use Tab to reach the Cat Directory and Enter to open a repository card. Escape closes the card.
+## Development
 
-Inspired by [Dhruv Sharma's CodeVerse](https://github.com/Dhruv-Sharma29/CodeVerse), which maps GitHub profiles to explorable planetary systems.
+Run `npm ci` and `npm run dev`. Run `npm run build` to check TypeScript and create the production site in `dist/`. To update GitHub Pages, copy the built assets under `docs/` and update `docs/index.html` together with them. The deployed site uses relative asset URLs.

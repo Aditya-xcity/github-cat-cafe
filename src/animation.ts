@@ -28,17 +28,21 @@ export function enableSound() {
   }
 }
 
-export function sound(kind: 'chime' | 'meow') {
-  if (!audio || audio.state !== 'running') return
+const cues = { chime: [660, 880], meow: [570], throw: [415], success: [523, 659, 784],
+  warning: [196, 147], victory: [392, 523, 659, 1047] }
+
+export function sound(kind: keyof typeof cues) {
+  if (!audio || audio.state !== 'running' || document.hidden) return
   const context = audio
-  const notes = kind === 'chime' ? [660, 880] : [570]
+  const notes = cues[kind]
   notes.forEach((note, index) => {
     const time = context.currentTime + index * .12
     const oscillator = context.createOscillator()
     const volume = context.createGain()
-    oscillator.type = kind === 'chime' ? 'sine' : 'triangle'
+    oscillator.type = kind === 'warning' ? 'triangle' : 'sine'
     oscillator.frequency.setValueAtTime(note, time)
     if (kind === 'meow') oscillator.frequency.exponentialRampToValueAtTime(310, time + .23)
+    if (kind === 'throw') oscillator.frequency.exponentialRampToValueAtTime(170, time + .12)
     volume.gain.setValueAtTime(.001, time)
     volume.gain.exponentialRampToValueAtTime(.065, time + .04)
     volume.gain.exponentialRampToValueAtTime(.001, time + .25)
