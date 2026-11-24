@@ -1,0 +1,80 @@
+  name: Space Cats branch browser checks
+on:
+  push:
+    branches: [feature/rocket-battles]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run build && diff --strip-trailing-cr -r dist docs
+      - run: npm install --no-save --package-lock=false playwright@1.58.2
+      - run: npx playwright install --with-deps chromium
+      - name: Verify built game in Chromium
+        run: |
+          python -m http.server 4173 --bind 127.0.0.1 &
+          cat > .space-cats-check.mjs <<'JS'
+          import { chromium } from 'playwright'
+          import assert from 'node:assert/strict'
+          const browser = await chromium.launch()
+          const p = await browser.newPage({viewport:{width:1200,height:800}})
+          const errors=[]
+          p.on('pageerror', e=>errors.push(e.message))
+          await p.addInitScript(() => { Math.random = () => Number(localStorage.getItem('testRoll') ?? '0') })
+          await p.clock.install()
+          await p.goto('http://127.0.0.1:4173/docs/')
+          const text = s => p.getByText(s,{exact:true})
+          await p.mouse.click(1050,550)
+          await text('Pokéballs 29 / 30').waitFor()
+          await text('Pokéballs 30 / 30').waitFor()
+          await p.getByRole('button',{name:'Throw at Mochi'}).click()
+          await p.locator('.capture-shake').waitFor()
+          assert.equal(await text('0 / 4 cats captured').count(),1)
+          await text('1 / 4 cats captured').waitFor()
+          await p.getByRole('button',{name:'Collection',exact:true}).click()
+          await text('1 attempt').waitFor()
+          await p.reload()
+          await text('1 / 4 cats captured').waitFor()
+          await p.evaluate(() => localStorage.testRoll = '0.99')
+          await p.getByRole('button',{name:'Throw at Biscuit'}).click()
+          await p.locator('.capture-shake').waitFor()
+          await text('Biscuit escaped!').waitFor()
+          assert.equal(await text('1 / 4 cats captured').count(),1)
+          await p.getByRole('button',{name:'Pause',exact:true}).click()
+          await text('Paused').waitFor()
+          await p.getByRole('button',{name:'Resume',exact:true}).click()
+          await p.evaluate(() => localStorage.testRoll = '0')
+          await p.clock.runFor(49000)
+          const rocket = p.locator('.rocket')
+          await rocket.waitFor()
+          const health=p.getByRole('progressbar',{name:'Team Rocket health'})
+          await health.waitFor()
+          for(let i=0;i<26 && await health.count();i++){
+            const box=await rocket.boundingBox()
+            if (box) await p.mouse.click(box.x+box.width/2,box.y+box.height/2)
+            await p.clock.runFor(550)
+          }
+          await text('Rocket defeats 1').waitFor({timeout:2000})
+          await p.reload()
+          await text('Rocket defeats 1').waitFor()
+          await p.clock.runFor(85000)
+          assert.equal(await text('Hull 100 HP').count(),1)
+          assert.equal(await text('1 / 4 cats captured').count(),1)
+          assert.deepEqual(errors,[])
+          console.log('Desktop capture success, escape, delayed resolution, ammo, pause, victory, and persistence passed.')
+          const mobile=await browser.newPage({viewport:{width:390,height:844},hasTouch:true,isMobile:true})
+          await mobile.goto('http://127.0.0.1:4173/docs/')
+          await mobile.touchscreen.tap(355,410)
+          await mobile.getByText('Pokéballs 29 / 30',{exact:true}).waitFor()
+          console.log('Mobile tap throws a Pokéball.')
+          await browser.close()
+          JS
+          node .space-cats-check.mjs
+
